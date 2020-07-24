@@ -21,12 +21,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-type Capsule struct {
-	E *ecdsa.PublicKey
-	V *ecdsa.PublicKey
-	S *big.Int
-}
-
 var CURVE = elliptic.P256()
 var P = CURVE.Params().P
 var N = CURVE.Params().N
@@ -39,8 +33,6 @@ func stringToPrivateKey(skString *string, pk ecdsa.PublicKey) (*ecdsa.PrivateKey
 	if !ok {
 		return nil, errors.New("SetString error")
 	}
-
-	fmt.Printf("n: %v\n", n)
 
 	sk := ecdsa.PrivateKey{
 		PublicKey: pk,
@@ -201,11 +193,25 @@ type Observation struct {
 	Capsule    string `json:"capsule"`
 }
 
+type ObservationRequest struct {
+	Attribute  string `json:"attribute"`
+	Ciphertext string `json:"ciphertext"`
+	// Capsule     string `json:"capsule"`
+	CapsuleE    string `json:"capsuleE"`
+	CapsuleV    string `json:"capsuleV"`
+	CapsuleS    string `json:"capsuleS"`
+	SupertypeID string `json:"supertypeID"`
+	PublicKey   string `json:"pk"`
+}
+
 // ObservationResponse is returned from the server
 // todo should this be public?
 type ObservationResponse struct {
-	Ciphertext           string    `json:"ciphertext"`
-	Capsule              string    `json:"capsule"`
+	Ciphertext string `json:"ciphertext"`
+	// Capsule              string    `json:"capsule"`
+	CapsuleE             string    `json:"capsuleE"`
+	CapsuleV             string    `json:"capsuleV"`
+	CapsuleS             string    `json:"capsuleS"`
 	DateAdded            string    `json:"dateAdded"`
 	PublicKey            string    `json:"pk"`
 	SupertypeID          string    `json:"supertypeID"`
@@ -241,35 +247,89 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 		return errors.New("Error encrypt data")
 	}
 
-	capsuleAsBytes, err := encodeCapsule(*capsule)
+	// capsuleAsBytes, err := encodeCapsule(*capsule)
+	// if err != nil {
+	// 	return errors.New("Error encoding data")
+	// }
+
+	// fmt.Printf("capsule as bytes: %v\n", capsuleAsBytes)
+	// fmt.Printf("string version of capsule as bytes: %v\n", string(capsuleAsBytes))
+	// s := string(capsuleAsBytes)
+	// for _, r := range s {
+	// 	fmt.Printf("r: %v\n", r)
+	// }
+	// rs := []rune(s)
+	// fmt.Printf("rs: %v\n", rs)
+
+	// var outstring string
+	// for _, v := range rs {
+	// 	outstring += string(v)
+	// }
+
+	// fmt.Printf("outstring: %v\n", outstring)
+
+	capsuleE := PublicKeyToString(capsule.E)
+	capsuleV := PublicKeyToString(capsule.V)
+	capsuleS := capsule.S.String()
+
+	ce, err := stringToPublicKey(&capsuleE)
 	if err != nil {
-		return errors.New("Error encoding data")
+		fmt.Println("1")
 	}
 
-	fmt.Printf("capsule as bytes: %v\n", capsuleAsBytes)
-	fmt.Printf("string version of capsule as bytes: %v\n", string(capsuleAsBytes))
-	s := string(capsuleAsBytes)
-	for _, r := range s {
-		fmt.Printf("r: %v\n", r)
-	}
-	rs := []rune(s)
-	fmt.Printf("rs: %v\n", rs)
-
-	var outstring string
-	for _, v := range rs {
-		outstring += string(v)
+	cv, err := stringToPublicKey(&capsuleV)
+	if err != nil {
+		fmt.Println("1")
 	}
 
-	fmt.Printf("outstring: %v\n", outstring)
+	x := new(big.Int)
+	x, ok := x.SetString(capsuleS, 10)
+	if !ok {
+		return errors.New("Ooopsie doopsie")
+	}
+
+	decodedCapsule := Capsule{
+		E: ce,
+		V: cv,
+		S: x,
+	}
+
+	fmt.Printf("capsule: %v\n", capsule.E)
+	fmt.Printf("decoded capsule: %v\n", decodedCapsule.E)
+
+	fmt.Printf("capsule: %v\n", capsule.V)
+	fmt.Printf("decoded capsule: %v\n", decodedCapsule.V)
+
+	fmt.Printf("capsule: %v\n", capsule.S)
+	fmt.Printf("decoded capsule: %v\n", decodedCapsule.S)
+
+	sk, err := stringToPrivateKey(&skVendor, *pk)
+	if err != nil {
+		fmt.Println("lskdjf")
+	}
+
+	pt, err := DecryptOnMyPriKey(sk, &decodedCapsule, cipherText)
+	if err != nil {
+		fmt.Println("lkj")
+	}
+
+	fmt.Printf("pt: %v\n", string(pt))
+
+	fmt.Printf("ciphertextAsBytes: %v\n", cipherText)
+
+	obs := ObservationRequest{
+		Attribute:  attribute,
+		Ciphertext: hex.EncodeToString(cipherText),
+		// Capsule:     base64.RawStdEncoding.EncodeToString(capsuleAsBytes),
+		CapsuleE:    capsuleE,
+		CapsuleV:    capsuleV,
+		CapsuleS:    capsuleS,
+		SupertypeID: supertypeID,
+		PublicKey:   pkVendor,
+	}
 
 	// Upload data to DynamoDB
-	requestBody, err := json.Marshal(map[string]string{
-		"attribute":   attribute,
-		"ciphertext":  string(cipherText),
-		"capsule":     string(capsuleAsBytes),
-		"supertypeID": supertypeID,
-		"pk":          pkVendor,
-	})
+	requestBody, err := json.Marshal(obs)
 	if err != nil {
 		return errors.New("Error marshaling request")
 	}
@@ -280,6 +340,42 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	}
 
 	return nil
+}
+
+// Recreate aes key
+func RecreateAESKeyByMyPriKey(capsule *Capsule, aPriKey *ecdsa.PrivateKey) (keyBytes []byte, err error) {
+	point1 := pointScalarAdd(capsule.E, capsule.V)
+	point := pointScalarMul(point1, aPriKey.D)
+	// generate aes key
+	keyBytes, err = sha3Hash(pointToBytes(point))
+	if err != nil {
+		return nil, err
+	}
+	return keyBytes, nil
+}
+
+// Decrypt by my own private key
+func DecryptOnMyPriKey(aPriKey *ecdsa.PrivateKey, capsule *Capsule, cipherText []byte) (plainText []byte, err error) {
+	keyBytes, err := RecreateAESKeyByMyPriKey(capsule, aPriKey)
+	if err != nil {
+		return nil, err
+	}
+	key := hex.EncodeToString(keyBytes)
+	// use aes gcm algorithm to encrypt
+	// mark keyBytes[:12] as nonce
+	plainText, err = GCMDecrypt(cipherText, key[:32], keyBytes[:12], nil)
+	return plainText, err
+}
+
+// convert private key to string
+func PrivateKeyToString(privateKey *ecdsa.PrivateKey) string {
+	return hex.EncodeToString(privateKey.D.Bytes())
+}
+
+// convert public key to string
+func PublicKeyToString(publicKey *ecdsa.PublicKey) string {
+	pubKeyBytes := pointToBytes(publicKey)
+	return hex.EncodeToString(pubKeyBytes)
 }
 
 /*
@@ -329,29 +425,69 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 
 	// Iterate through each observation
 	for _, obs := range observations {
-		fmt.Printf("capsule: %v\n", obs.Capsule)
-		n := new(big.Int)
-		n, ok := n.SetString(obs.ReencryptionMetadata[0], 10)
+		capsuleE, err := stringToPublicKey(&obs.CapsuleE)
+		if err != nil {
+			return errors.New("Error decoding capsule")
+		}
+
+		capsuleV, err := stringToPublicKey(&obs.CapsuleV)
+		if err != nil {
+			return errors.New("Error decoding capsule")
+		}
+
+		capsuleS := new(big.Int)
+		capsuleS, ok := capsuleS.SetString(obs.CapsuleS, 10)
+		if !ok {
+			return errors.New("Error decoding capsule")
+		}
+
+		decodedCapsule := Capsule{
+			E: capsuleE,
+			V: capsuleV,
+			S: capsuleS,
+		}
+
+		// ciphertextAsBytes, err := base64.RawStdEncoding.DecodeString(obs.Ciphertext)
+		ciphertextAsBytes, err := hex.DecodeString(obs.Ciphertext)
+		if err != nil {
+			return errors.New("Error decoding cipehrtext")
+		}
+
+		// capsuleAsBytes, err := base64.RawStdEncoding.DecodeString(obs.CapsuleE)
+		// if err != nil {
+		// 	return errors.New("Error decoding capsule")
+		// }
+		// decodedCapsule, err := decodeCapsule(capsuleAsBytes)
+		// if err != nil {
+		// 	return errors.New("Error decoding capsule")
+		// }
+
+		rekey := new(big.Int)
+		rekey, ok = rekey.SetString(obs.ReencryptionMetadata[0], 10)
 		if !ok {
 			return errors.New("Error setting rekey")
 		}
 
-		decodedCapsule, err := decodeCapsule([]byte(obs.Capsule))
-		if err != nil {
-			return errors.New("Error decoding capsule")
-		}
-		newCapsule, err := reEncryption(n, &decodedCapsule)
-		if err != nil {
-			return errors.New("Error re-encrypting")
-		}
+		fmt.Printf("rekey: %v\n", rekey)
 
 		pkX, err := stringToPublicKey(&(obs.ReencryptionMetadata[1]))
 		if err != nil {
 			return errors.New("Error decoding pkX")
 		}
 
-		plainText, err := decrypt(sk, newCapsule, pkX, []byte(obs.Ciphertext))
-		fmt.Printf("plaintext: %v\n", plainText)
+		fmt.Printf("pkX string: %v\n", obs.ReencryptionMetadata[1])
+
+		newCapsule, err := reEncryption(rekey, &decodedCapsule)
+		if err != nil {
+			return errors.New("Error re-encrypting")
+		}
+
+		fmt.Printf("ciphertextAsBytes: %v\n", ciphertextAsBytes)
+		plainText, err := decrypt(sk, newCapsule, pkX, ciphertextAsBytes)
+		if err != nil {
+			fmt.Printf("Error decrypting... %v\n", err)
+		}
+		fmt.Printf("plaintext: %v\n", string(plainText))
 	}
 
 	return nil
@@ -381,7 +517,6 @@ func reEncryption(rk *big.Int, capsule *Capsule) (*Capsule, error) {
 }
 
 func decodeCapsule(capsuleAsBytes []byte) (capsule Capsule, err error) {
-	fmt.Printf("capsule as bytes: %v\n", capsuleAsBytes)
 	capsule = Capsule{}
 	gob.Register(elliptic.P256())
 	dec := gob.NewDecoder(bytes.NewBuffer(capsuleAsBytes))
@@ -430,6 +565,7 @@ func decrypt(bPriKey *ecdsa.PrivateKey, capsule *Capsule, pubX *ecdsa.PublicKey,
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("pt: %v\n", plainText)
 	return plainText, nil
 }
 
@@ -444,6 +580,7 @@ func GCMDecrypt(cipherText []byte, key string, iv []byte, additionalData []byte)
 	}
 	plainText, err = aesgcm.Open(nil, iv, cipherText, additionalData)
 	if err != nil {
+		fmt.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	return plainText, nil
