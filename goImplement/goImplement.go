@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -25,19 +24,13 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	// Get public and private keys in usable form
 	pk, err := StringToPublicKey(&pkVendor)
 	if err != nil {
-		return errors.New("Error converting to public key")
+		return ErrStringToPublicKey
 	}
-
-	// TODO we will use this for re-encryption with new vendors
-	// sk, err := stringToPrivateKey(&skVendor, *pk)
-	// if err != nil {
-	// 	return errors.New("Error converting to private key")
-	// }
 
 	// Encrypt data
 	cipherText, capsule, err := Encrypt(data, pk)
 	if err != nil {
-		return errors.New("Error encrypt data")
+		return ErrEncryptingData
 	}
 
 	capsuleE := PublicKeyToString(capsule.E)
@@ -57,13 +50,55 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	// Upload data to DynamoDB
 	requestBody, err := json.Marshal(obs)
 	if err != nil {
-		return errors.New("Error marshaling request")
+		return ErrMarshaling
 	}
 
 	_, err = http.Post("http://localhost:8080/produce", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		return errors.New("Error posting data")
+		return ErrHTML
 	}
+
+	// Get connections metadata in order to create any necessary re-encryption keys
+	resp, err := http.Post("http://localhost:8080/getVendorComparisonMetadata", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return ErrHTML
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ErrIORead
+	}
+
+	var metadata MetadataResponse
+	json.Unmarshal(body, &metadata)
+
+	connections := metadata.VendorConnections
+	vendors := metadata.Vendors
+
+	fmt.Printf("connections: %v\n", connections)
+	fmt.Printf("vendors: %v\n", vendors)
+
+	// Check if our vendor is up-to-date
+	for _, vendor := range vendors {
+		fmt.Printf("----\nconnection: %v\n", vendor)
+		if !Contains(connections, vendor) {
+			fmt.Printf("Our vendor doesn't have re-encryption keys for %v\n", vendor)
+
+			// Create re-encryption keys for current vendor to this vendor, and add it to this our current vendor
+		}
+	}
+
+	// TODO we will use this for re-encryption with new vendors
+	// sk, err := stringToPrivateKey(&skVendor, *pk)
+	// if err != nil {
+	// 	return ErrStringToPrivateKey
+	// }
+
+	// TODO maybe /produce will return a list of vendors, as well as this vendor's connections list as its ObservationResponse
+	// TODO maybe let's call a new endpoint to get this information... we don't want to slow down production, and we can figure out a way to do this in the background, asynchronously from typical Produce functionality...
+	// 	1. Go through each vendor pk
+	// 	2. If the vendor pk isn't in this vendor's connections list, create re-encryption keys for it
+	// 	3. Update the vendor table through a new API endpoint
 
 	return nil
 }
@@ -76,7 +111,7 @@ This data is source-agnostic, and encrypted end-to-end
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
 */
-func Consume(attribute string, supertypeID string, skVendor string, pkVendor string) error {
+func Consume(attribute string, supertypeID string, skVendor string, pkVendor string) (*[]Observation, error) {
 	// Get data from server
 	requestBody, err := json.Marshal(map[string]string{
 		"attribute":   attribute,
@@ -84,51 +119,53 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 		"pk":          pkVendor,
 	})
 	if err != nil {
-		return errors.New("Error marshaling request")
+		return nil, ErrMarshaling
 	}
 
 	resp, err := http.Post("http://localhost:8080/consume", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		return errors.New("Error posting data")
+		return nil, ErrHTML
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return errors.New("Error reading response")
+		return nil, ErrIORead
 	}
 
 	var observations []ObservationResponse
-	json.Unmarshal(body, &observations) // todo figure out a way to not use json.unmarshal in favor of decoder
+	json.Unmarshal(body, &observations)
 
 	// Get public and private keys in usable form
 	pk, err := StringToPublicKey(&pkVendor)
 	if err != nil {
-		return errors.New("Error converting to public key")
+		return nil, ErrStringToPublicKey
 	}
 
 	sk, err := StringToPrivateKey(&skVendor, *pk)
 	if err != nil {
-		return errors.New("Error converting to private key")
+		return nil, ErrStringToPrivateKey
 	}
+
+	var result []Observation
 
 	// Iterate through each observation
 	for _, obs := range observations {
 		capsuleE, err := StringToPublicKey(&obs.CapsuleE)
 		if err != nil {
-			return errors.New("Error decoding capsule")
+			return nil, ErrStringToPublicKey
 		}
 
 		capsuleV, err := StringToPublicKey(&obs.CapsuleV)
 		if err != nil {
-			return errors.New("Error decoding capsule")
+			return nil, ErrStringToPublicKey
 		}
 
 		capsuleS := new(big.Int)
 		capsuleS, ok := capsuleS.SetString(obs.CapsuleS, 10)
 		if !ok {
-			return errors.New("Error decoding capsule")
+			return nil, ErrStringToPublicKey
 		}
 
 		decodedCapsule := Capsule{
@@ -137,39 +174,40 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 			S: capsuleS,
 		}
 
-		// ciphertextAsBytes, err := base64.RawStdEncoding.DecodeString(obs.Ciphertext)
 		ciphertextAsBytes, err := hex.DecodeString(obs.Ciphertext)
 		if err != nil {
-			return errors.New("Error decoding cipehrtext")
+			return nil, ErrDecoding
 		}
 
 		rekey := new(big.Int)
 		rekey, ok = rekey.SetString(obs.ReencryptionMetadata[0], 10)
 		if !ok {
-			return errors.New("Error setting rekey")
+			return nil, ErrStringToBigInt
 		}
-
-		fmt.Printf("rekey: %v\n", rekey)
 
 		pkX, err := StringToPublicKey(&(obs.ReencryptionMetadata[1]))
 		if err != nil {
-			return errors.New("Error decoding pkX")
+			return nil, ErrDecoding
 		}
 
-		fmt.Printf("pkX string: %v\n", obs.ReencryptionMetadata[1])
-
-		newCapsule, err := ReEncryption(rekey, &decodedCapsule)
+		newCapsule, err := ReEncrypt(rekey, &decodedCapsule)
 		if err != nil {
-			return errors.New("Error re-encrypting")
+			return nil, ErrReencrypting
 		}
 
-		fmt.Printf("ciphertextAsBytes: %v\n", ciphertextAsBytes)
 		plainText, err := Decrypt(sk, newCapsule, pkX, ciphertextAsBytes)
 		if err != nil {
-			fmt.Printf("Error decrypting... %v\n", err)
+			return nil, ErrDecrypting
 		}
 		fmt.Printf("plaintext: %v\n", string(plainText))
+
+		reObs := Observation{
+			DateAdded: obs.DateAdded,
+			PublicKey: obs.PublicKey,
+			Plaintext: string(plainText),
+		}
+		result = append(result, reObs)
 	}
 
-	return nil
+	return &result, nil
 }

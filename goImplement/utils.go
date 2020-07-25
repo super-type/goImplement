@@ -68,3 +68,13 @@ func Sha3Hash(message []byte) ([]byte, error) {
 	}
 	return sha.Sum(nil), nil
 }
+
+// Contains checks if a string is contained within a string array
+func Contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}

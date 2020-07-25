@@ -1,12 +1,5 @@
 package goimplement
 
-// Observation is the data to upload lmao
-// todo should this be public?
-type Observation struct {
-	CipherText string `json:"ciphertext"`
-	Capsule    string `json:"capsule"`
-}
-
 type ObservationRequest struct {
 	Attribute  string `json:"attribute"`
 	Ciphertext string `json:"ciphertext"`
@@ -30,4 +23,16 @@ type ObservationResponse struct {
 	PublicKey            string    `json:"pk"`
 	SupertypeID          string    `json:"supertypeID"`
 	ReencryptionMetadata [2]string `json:"reencryptionMetadata"`
+}
+
+type Observation struct {
+	DateAdded string `json:"dateAdded"`
+	PublicKey string `json:"pk"`
+	Plaintext string `json:"plaintext"`
+}
+
+// MetadataResponse is the vendor metadata used to sync vendors on data production
+type MetadataResponse struct {
+	VendorConnections []string `json:"connections"`
+	Vendors           []string `json:"vendors"`
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
 )
 
 // Decrypt by my own private key
@@ -66,7 +65,6 @@ func Decrypt(bPriKey *ecdsa.PrivateKey, capsule *Capsule, pubX *ecdsa.PublicKey,
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("pt: %v\n", plainText)
 	return plainText, nil
 }
 
@@ -81,7 +79,6 @@ func GCMDecrypt(cipherText []byte, key string, iv []byte, additionalData []byte)
 	}
 	plainText, err = aesgcm.Open(nil, iv, cipherText, additionalData)
 	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	return plainText, nil

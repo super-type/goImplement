@@ -5,15 +5,11 @@ import (
 	"math/big"
 )
 
-// Server executes Re-Encryption method
-func ReEncryption(rk *big.Int, capsule *Capsule) (*Capsule, error) {
+// ReEncrypt re-encrypts the capsule into a new capsule, able to be decrypted with the rekey
+func ReEncrypt(rk *big.Int, capsule *Capsule) (*Capsule, error) {
 	// check g^s == V * E^{H2(E || V)}
 	x1, y1 := CURVE.ScalarBaseMult(capsule.S.Bytes())
-	tempX, tempY := CURVE.ScalarMult(capsule.E.X, capsule.E.Y,
-		HashToCurve(
-			ConcatBytes(
-				PointToBytes(capsule.E),
-				PointToBytes(capsule.V))).Bytes())
+	tempX, tempY := CURVE.ScalarMult(capsule.E.X, capsule.E.Y, HashToCurve(ConcatBytes(PointToBytes(capsule.E), PointToBytes(capsule.V))).Bytes())
 	x2, y2 := CURVE.Add(capsule.V.X, capsule.V.Y, tempX, tempY)
 	// if check failed return error
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
