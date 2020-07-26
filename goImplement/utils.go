@@ -78,3 +78,9 @@ func Contains(s []string, e string) bool {
 	}
 	return false
 }
+
+// GetInvert gets the inverse of a BigInteger
+func GetInvert(a *big.Int) (res *big.Int) {
+	res = new(big.Int).ModInverse(a, N)
+	return
+}
