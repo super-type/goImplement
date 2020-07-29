@@ -20,6 +20,7 @@ You need only encrypt once to send data anywhere within the ecosystem
 @param pkVendor the vendor's public key
 */
 // TODO implement signing
+// TODO implement sharding capsule
 func Produce(data string, attribute string, supertypeID string, skVendor string, pkVendor string) error {
 	// Get public and private keys in usable form
 	pk, err := StringToPublicKey(&pkVendor)
@@ -77,7 +78,6 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 
 	sk, err := StringToPrivateKey(&skVendor, *pk)
 	if err != nil {
-		fmt.Printf("error!!!: %v\n", err)
 		return ErrStringToPrivateKey
 	}
 
@@ -112,12 +112,6 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	if err != nil {
 		return ErrHTML
 	}
-
-	// TODO maybe /produce will return a list of vendors, as well as this vendor's connections list as its ObservationResponse
-	// TODO maybe let's call a new endpoint to get this information... we don't want to slow down production, and we can figure out a way to do this in the background, asynchronously from typical Produce functionality...
-	// 	1. Go through each vendor pk
-	// 	2. If the vendor pk isn't in this vendor's connections list, create re-encryption keys for it
-	// 	3. Update the vendor table through a new API endpoint
 
 	return nil
 }
@@ -199,6 +193,7 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 		}
 
 		rekey := new(big.Int)
+		// TODO if this is nil, that means it's the vendor's own data, so we need a check & implementation for that
 		rekey, ok = rekey.SetString(obs.ReencryptionMetadata[0], 10)
 		if !ok {
 			return nil, ErrStringToBigInt

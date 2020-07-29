@@ -1,9 +1,21 @@
 package goimplement
 
+import (
+	"crypto/ecdsa"
+	"math/big"
+)
+
+// Capsule is essentially the re-encryption key
+type Capsule struct {
+	E *ecdsa.PublicKey
+	V *ecdsa.PublicKey
+	S *big.Int
+}
+
+// ObservationRequest is an incoming observation from a vendor
 type ObservationRequest struct {
-	Attribute  string `json:"attribute"`
-	Ciphertext string `json:"ciphertext"`
-	// Capsule     string `json:"capsule"`
+	Attribute   string `json:"attribute"`
+	Ciphertext  string `json:"ciphertext"`
 	CapsuleE    string `json:"capsuleE"`
 	CapsuleV    string `json:"capsuleV"`
 	CapsuleS    string `json:"capsuleS"`
@@ -12,7 +24,6 @@ type ObservationRequest struct {
 }
 
 // ObservationResponse is returned from the server
-// todo should this be public?
 type ObservationResponse struct {
 	Ciphertext string `json:"ciphertext"`
 	// Capsule              string    `json:"capsule"`
@@ -25,6 +36,7 @@ type ObservationResponse struct {
 	ReencryptionMetadata [2]string `json:"reencryptionMetadata"`
 }
 
+// Observation is a decrypted observation containing plaintext
 type Observation struct {
 	DateAdded string `json:"dateAdded"`
 	PublicKey string `json:"pk"`

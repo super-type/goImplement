@@ -8,12 +8,11 @@ import (
 
 // An example vendor A's backend, showing how easy it is to produce data to Supertype
 func main() {
-	caloriesBurned := "153"
-	attribute := "caloriesBurned"
+	temperature := "153"
+	attribute := "temperature"
 	supertypeID := "user123"
 
-	// TODO when making a new vendor account, add the skA, pkA
-	err := goimplement.Produce(caloriesBurned, attribute, supertypeID, "91032863405535923859153039920779555024328120618368196021389762057833204795281", "04fcee14eaa83337315688ef3db63586ecceddfddf436b57444958806b566ec9d1e809577c44fcceeac9beb9d7be82f5b9be84d94f8bc54a82cf1a6f3c9ae37140")
+	err := goimplement.Produce(temperature, attribute, supertypeID, "91032863405535923859153039920779555024328120618368196021389762057833204795281", "04fcee14eaa83337315688ef3db63586ecceddfddf436b57444958806b566ec9d1e809577c44fcceeac9beb9d7be82f5b9be84d94f8bc54a82cf1a6f3c9ae37140")
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	}
