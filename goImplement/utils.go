@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/sha256"
+	"encoding/hex"
 	"math/big"
 
 	"golang.org/x/crypto/sha3"
@@ -91,4 +93,11 @@ func Contains(s []string, e string) bool {
 func GetInverse(a *big.Int) (res *big.Int) {
 	res = new(big.Int).ModInverse(a, N)
 	return
+}
+
+// GetSecretKeyHash returns the hashed value of the secret key
+func GetSecretKeyHash(skVendor string) string {
+	h := sha256.New()
+	h.Write([]byte(skVendor))
+	return hex.EncodeToString(h.Sum(nil))
 }

@@ -12,7 +12,7 @@ func ReEncrypt(rk *big.Int, capsule *Capsule) (*Capsule, error) {
 	tempX, tempY := CURVE.ScalarMult(capsule.E.X, capsule.E.Y, HashToCurve(ConcatBytes(PointToBytes(capsule.E), PointToBytes(capsule.V))).Bytes())
 	x2, y2 := CURVE.Add(capsule.V.X, capsule.V.Y, tempX, tempY)
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
-		return nil, fmt.Errorf("%s", "Capsule not match")
+		return nil, fmt.Errorf("%s", "Capsule does not match.")
 	}
 
 	newCapsule := &Capsule{
@@ -48,20 +48,15 @@ func CreateReencryptionKeys(vendor string, sk *ecdsa.PrivateKey) (*[2]string, er
 }
 
 // ReKeyGen generates a re-encryption key and sends it to Server
-func ReKeyGen(aPriKey *ecdsa.PrivateKey, bPubKey *ecdsa.PublicKey) (*big.Int, *ecdsa.PublicKey, error) {
+func ReKeyGen(skA *ecdsa.PrivateKey, pkB *ecdsa.PublicKey) (*big.Int, *ecdsa.PublicKey, error) {
 	priX, pubX, err := GenerateKeys()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	point := PointScalarMul(bPubKey, priX.D)
-	d := HashToCurve(
-		ConcatBytes(
-			ConcatBytes(
-				PointToBytes(pubX),
-				PointToBytes(bPubKey)),
-			PointToBytes(point)))
-	rk := MultiplyBigInteger(aPriKey.D, GetInverse(d))
+	point := PointScalarMul(pkB, priX.D)
+	d := HashToCurve(ConcatBytes(ConcatBytes(PointToBytes(pubX), PointToBytes(pkB)), PointToBytes(point)))
+	rk := MultiplyBigInteger(skA.D, GetInverse(d))
 	rk.Mod(rk, N)
 
 	return rk, pubX, nil
