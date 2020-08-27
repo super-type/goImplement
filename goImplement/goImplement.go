@@ -19,7 +19,6 @@ You need only encrypt once to send data anywhere within the ecosystem
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
 */
-// TODO implement signing
 // TODO implement sharding capsule
 func Produce(data string, attribute string, supertypeID string, skVendor string, pkVendor string) error {
 	// Get public and private keys in usable form
@@ -38,6 +37,9 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	capsuleV := PublicKeyToString(capsule.V)
 	capsuleS := capsule.S.String()
 
+	// Generate hash of secret key to be used as a signing measure for producing/consuming data
+	skHash := GetSecretKeyHash(skVendor)
+
 	obs := ObservationRequest{
 		Attribute:   attribute,
 		Ciphertext:  hex.EncodeToString(cipherText),
@@ -46,6 +48,7 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 		CapsuleS:    capsuleS,
 		SupertypeID: supertypeID,
 		PublicKey:   pkVendor,
+		SkHash:      skHash,
 	}
 
 	// Upload data to DynamoDB
@@ -125,16 +128,6 @@ This data is source-agnostic, and encrypted end-to-end
 @param pkVendor the vendor's public key
 */
 func Consume(attribute string, supertypeID string, skVendor string, pkVendor string) (*[]Observation, error) {
-	// Get data from server
-	requestBody, err := json.Marshal(map[string]string{
-		"attribute":   attribute,
-		"supertypeID": supertypeID,
-		"pk":          pkVendor,
-	})
-	if err != nil {
-		return nil, ErrMarshaling
-	}
-
 	// Get public and private keys in usable form
 	pk, err := StringToPublicKey(&pkVendor)
 	if err != nil {
@@ -144,6 +137,19 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 	sk, err := StringToPrivateKey(&skVendor, *pk)
 	if err != nil {
 		return nil, ErrStringToPrivateKey
+	}
+
+	// Generate hash of secret key to be used as a signing measure for producing/consuming data
+	skHash := GetSecretKeyHash(skVendor)
+
+	requestBody, err := json.Marshal(map[string]string{
+		"attribute":   attribute,
+		"supertypeID": supertypeID,
+		"pk":          pkVendor,
+		"skHash":      skHash,
+	})
+	if err != nil {
+		return nil, ErrMarshaling
 	}
 
 	resp, err := http.Post("http://localhost:8080/consume", "application/json", bytes.NewBuffer(requestBody))

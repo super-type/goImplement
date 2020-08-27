@@ -46,9 +46,9 @@ func PrivateKeyToString(privateKey *ecdsa.PrivateKey) string {
 }
 
 // PublicKeyToString encodes an ECDSA public key to a string
-func PublicKeyToString(publicKey *ecdsa.PublicKey) string {
-	pubKeyBytes := PointToBytes(publicKey)
-	return hex.EncodeToString(pubKeyBytes)
+func PublicKeyToString(pk *ecdsa.PublicKey) string {
+	pkBytes := PointToBytes(pk)
+	return hex.EncodeToString(pkBytes)
 }
 
 // GenerateKeys generates a <private,public> key pair

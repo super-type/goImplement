@@ -48,14 +48,8 @@ func LocalDecrypt(aPriKey *ecdsa.PrivateKey, capsule *Capsule, cipherText []byte
 
 func decryptKeyGen(bPriKey *ecdsa.PrivateKey, capsule *Capsule, pubX *ecdsa.PublicKey) ([]byte, error) {
 	S := PointScalarMul(pubX, bPriKey.D)
-	d := HashToCurve(
-		ConcatBytes(
-			ConcatBytes(
-				PointToBytes(pubX),
-				PointToBytes(&bPriKey.PublicKey)),
-			PointToBytes(S)))
-	point := PointScalarMul(
-		PointScalarAdd(capsule.E, capsule.V), d)
+	d := HashToCurve(ConcatBytes(ConcatBytes(PointToBytes(pubX), PointToBytes(&bPriKey.PublicKey)), PointToBytes(S)))
+	point := PointScalarMul(PointScalarAdd(capsule.E, capsule.V), d)
 	keyBytes, err := Sha3Hash(PointToBytes(point))
 	if err != nil {
 		return nil, err

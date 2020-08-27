@@ -21,6 +21,7 @@ type ObservationRequest struct {
 	CapsuleS    string `json:"capsuleS"`
 	SupertypeID string `json:"supertypeID"`
 	PublicKey   string `json:"pk"`
+	SkHash      string `json:"skHash"`
 }
 
 // ObservationResponse is returned from the server

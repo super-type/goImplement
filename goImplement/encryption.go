@@ -26,8 +26,8 @@ func GCMEncrypt(plaintext []byte, key string, iv []byte, additionalData []byte) 
 }
 
 // Encrypt creates the AES key, encrypts it it with GCM, and returns ciphertext and capsule
-func Encrypt(message string, pubKey *ecdsa.PublicKey) (cipherText []byte, capsule *Capsule, err error) {
-	capsule, aesKeyBytes, err := EncryptKeyGen(pubKey)
+func Encrypt(message string, pk *ecdsa.PublicKey) (cipherText []byte, capsule *Capsule, err error) {
+	capsule, aesKeyBytes, err := EncryptKeyGen(pk)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,7 +42,7 @@ func Encrypt(message string, pubKey *ecdsa.PublicKey) (cipherText []byte, capsul
 }
 
 // EncryptKeyGen generates the capsule and AES key
-func EncryptKeyGen(pubKey *ecdsa.PublicKey) (*Capsule, []byte, error) {
+func EncryptKeyGen(pk *ecdsa.PublicKey) (*Capsule, []byte, error) {
 	s := new(big.Int)
 	skE, pkE, err := GenerateKeys()
 	skV, pkV, err := GenerateKeys()
@@ -55,7 +55,7 @@ func EncryptKeyGen(pubKey *ecdsa.PublicKey) (*Capsule, []byte, error) {
 			PointToBytes(pkE),
 			PointToBytes(pkV)))
 	s = AddBigInteger(skV.D, MultiplyBigInteger(skV.D, h))
-	point := PointScalarMul(pubKey, AddBigInteger(skE.D, skV.D))
+	point := PointScalarMul(pk, AddBigInteger(skE.D, skV.D))
 
 	aesKeyBytes, err := Sha3Hash(PointToBytes(point))
 	if err != nil {
