@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"net/http"
+	"net/url"
+
+	"github.com/gorilla/websocket"
 )
 
 /*
@@ -120,7 +125,7 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 }
 
 /*
-Consume receives data from the Supertype data marketplace and decrypt it
+Consume receives data from the Supertype data network, re-encrypts, and decrypts it
 This data is source-agnostic, and encrypted end-to-end
 @param attribute to consume data from
 @param supertypeID the vendor's Supertype ID
@@ -230,4 +235,54 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 	}
 
 	return &result, nil
+}
+
+/*
+ConsumeWS subscribes this node to the specified attribute(s)
+@param attribute to consume data from
+@param supertypeID the vendor's Supertype ID
+@param skVendor the vendor's secret key
+@param pkVendor the vendor's public key
+*/
+func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string) error {
+	// TODO first make a POST reqeust to the server to add attributes to Redis, then subscribe via WebSocket...
+	// Generate hash of secret key to be used as a signing measure for producing/consuming data
+	// skHash := GetSecretKeyHash(skVendor)
+
+	// requestBody, err := json.Marshal(map[string]string{
+	// 	"attribute":   attribute,
+	// 	"supertypeID": supertypeID,
+	// 	"pk":          pkVendor,
+	// 	"skHash":      skHash,
+	// })
+	// if err != nil {
+	// 	return nil, ErrMarshaling
+	// }
+
+	// Establish WebSocket connection between device <-> server
+	var addr = flag.String("addr", "localhost:8080", "http service address")
+	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consumeWS"}
+	log.Printf("connecting to %s", u.String())
+
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		log.Fatal("dial:", err)
+	}
+	defer c.Close()
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		for {
+			_, message, err := c.ReadMessage()
+			if err != nil {
+				log.Println("read:", err)
+				return
+			}
+			log.Printf("recv: %s", message)
+		}
+	}()
+
+	return nil
 }
