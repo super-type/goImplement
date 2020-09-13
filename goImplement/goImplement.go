@@ -11,9 +11,6 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
-	"os"
-	"strconv"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -247,7 +244,7 @@ ConsumeWS subscribes this node to the specified attribute(s)
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
 */
-func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string) (*string, error) {
+func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string) error {
 	// TODO first make a POST reqeust to the server to add attributes to Redis, then subscribe via WebSocket...
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	// skHash := GetSecretKeyHash(skVendor)
@@ -263,7 +260,6 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 	// }
 
 	// Establish WebSocket connection between device <-> server
-	interrupt := make(chan os.Signal, 1)
 	var addr = flag.String("addr", "localhost:8080", "http service address")
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consumeWS"}
 	log.Printf("connecting to %s", u.String())
@@ -288,34 +284,5 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 		}
 	}()
 
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	i := 1
-	for {
-		select {
-		case <-done:
-			return nil, nil
-		case _ = <-ticker.C:
-			err := c.WriteMessage(websocket.TextMessage, []byte(strconv.Itoa(i)))
-			if err != nil {
-				return nil, nil
-			}
-			i++
-		case <-interrupt:
-			log.Println("interrupt")
-
-			// Cleanly close the connection by sending a close message and then
-			// waiting (with timeout) for the server to close the connection.
-			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				return nil, nil
-			}
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-			}
-			return nil, nil
-		}
-	}
+	return nil
 }
