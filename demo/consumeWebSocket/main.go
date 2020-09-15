@@ -10,7 +10,7 @@ func main() {
 	attribute := "temperature"
 	supertypeID := "user123"
 
-	_, err := goimplement.ConsumeWS(attribute, supertypeID, "72927570929357778628895897803930837315763393826720243708803951621364049710425", "045adbe11c882202334e20fee4466837037903eea4275832bccced0b8ce383179bd7eb84334222bcadddcfd930257fd9ba57f6b95e8ec0b7f77b667382a949a0c9")
+	err := goimplement.ConsumeWS(attribute, supertypeID, "8575e5f7ca6ed6345ccdfc2d595649c571c6a4ac9a847b049b1ea67eb5e53acf", "046a9d202dcad0c86aa88fb72472fa2b2f180893bc4802a1fe9ce6ae80b4c1cef9a89d533c047e391f778759460830db149f9944c32126e4827c48819986238315")
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	}

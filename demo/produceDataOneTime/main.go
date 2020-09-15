@@ -9,11 +9,10 @@ import (
 // An example vendor A's backend, showing how easy it is to produce data to Supertype
 func main() {
 	temperature := "200"
-	attribute := "caloriesBurned"
+	attribute := "temperature"
 	supertypeID := "user123"
 
-	// this is the wrong sk for the given pk
-	err := goimplement.Produce(temperature, attribute, supertypeID, "91032863405535923859153039920779555024328120618368196021389762057833204795281", "042e26494ef3eea3622d5bd7ba602e06476f4bde3f0418d2cb24c7d04fa7b6985105f2782cbc5a0bf7ac20911f7c7e307a9c77ce7ceef6e0cb45d4c996fc63a559")
+	err := goimplement.Produce(temperature, attribute, supertypeID, "40564280015546133127186018201877113429491387889238716460773792707727598260818", "04eca9461980bc478f86c56ca316a959e283c4be77da6a63aca2b26a349e103b24b0595affd6ce401d323f6fc61c003cd580f609b7f9ec58901259ce1190aecc0a")
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	}
