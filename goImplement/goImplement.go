@@ -255,7 +255,7 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 	interrupt := make(chan os.Signal, 1)
 
 	var addr = flag.String("addr", "localhost:8081", "http service address")
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consumeWS"}
+	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consume"}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
