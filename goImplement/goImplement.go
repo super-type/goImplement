@@ -11,6 +11,8 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -247,20 +249,12 @@ ConsumeWS subscribes this node to the specified attribute(s)
 func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string) error {
 	// TODO first make a POST reqeust to the server to add attributes to Redis, then subscribe via WebSocket...
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
-	// skHash := GetSecretKeyHash(skVendor)
-
-	// requestBody, err := json.Marshal(map[string]string{
-	// 	"attribute":   attribute,
-	// 	"supertypeID": supertypeID,
-	// 	"pk":          pkVendor,
-	// 	"skHash":      skHash,
-	// })
-	// if err != nil {
-	// 	return nil, ErrMarshaling
-	// }
+	skHash := GetSecretKeyHash(skVendor)
 
 	// Establish WebSocket connection between device <-> server
-	var addr = flag.String("addr", "localhost:8080", "http service address")
+	interrupt := make(chan os.Signal, 1)
+
+	var addr = flag.String("addr", "localhost:8081", "http service address")
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consumeWS"}
 	log.Printf("connecting to %s", u.String())
 
@@ -281,8 +275,45 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 				return
 			}
 			log.Printf("recv: %s", message)
+
+			// todo we should listen to something better than "Subscribed" - maybe write a specific message type
+			if string(message) == "Subscribed" {
+				requestBody, err := json.Marshal(map[string]string{
+					"attribute":   attribute,
+					"supertypeID": supertypeID,
+					"pk":          pkVendor,
+					"skHash":      skHash,
+					"cid":         string(message),
+				})
+				err = c.WriteMessage(2, requestBody)
+				if err != nil {
+					return
+				}
+			}
 		}
 	}()
 
-	return nil
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return nil
+		case <-interrupt:
+			log.Println("interrupt")
+
+			// Cleanly close the connection by sending a close message and then
+			// waiting (with timeout) for the server to close the connection.
+			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			if err != nil {
+				return nil
+			}
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+			}
+			return nil
+		}
+	}
 }
