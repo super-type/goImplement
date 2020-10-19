@@ -1,98 +1,64 @@
 package goimplement
 
 import (
-	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
-	"math/big"
-
-	"golang.org/x/crypto/sha3"
+	"log"
+	"strings"
 )
 
-// CURVE is an elliptic curve
-var CURVE = elliptic.P256()
+// Encrypt creates the AES key, encrypts it it with GCM, and returns ciphertext and capsule
+func Encrypt(message string, userKey string) (*string, *string, error) {
+	userKeyBytes := []byte(userKey)
+	messageBytes := []byte(message)
+	block, err := aes.NewCipher(userKeyBytes[0:32])
+	if err != nil {
+		return nil, nil, err
+	}
 
-// P is the order of the underlying field
-var P = CURVE.Params().P
+	// Generate random IV
+	iv := make([]byte, aes.BlockSize)
+	if _, err := rand.Read(iv); err != nil {
+		log.Fatal(err)
+	}
+	ivString := base64.StdEncoding.EncodeToString(iv)
 
-// N is the order of the base point
-var N = CURVE.Params().N
-
-// CurvePoint is an ECDSA public key
-type CurvePoint = ecdsa.PublicKey
-
-// PointScalarAdd adds two scalars
-func PointScalarAdd(a, b *CurvePoint) *CurvePoint {
-	x, y := CURVE.Add(a.X, a.Y, b.X, b.Y)
-	return &CurvePoint{CURVE, x, y}
+	cfb := cipher.NewCFBEncrypter(block, iv)
+	ciphertext := make([]byte, len(messageBytes))
+	cfb.XORKeyStream(ciphertext, messageBytes)
+	ciphertextString := base64.StdEncoding.EncodeToString(ciphertext)
+	return &ciphertextString, &ivString, nil
 }
 
-// PointScalarMul multiplies two scalars
-func PointScalarMul(a *CurvePoint, k *big.Int) *CurvePoint {
-	x, y := a.ScalarMult(a.X, a.Y, k.Bytes())
-	return &CurvePoint{CURVE, x, y}
-}
-
-// PointToBytes converts a point to bytes
-func PointToBytes(point *CurvePoint) (res []byte) {
-	res = elliptic.Marshal(CURVE, point.X, point.Y)
-	return
-}
-
-// HashToCurve converts a byte hash to a curve
-func HashToCurve(hash []byte) *big.Int {
-	hashInt := new(big.Int).SetBytes(hash)
-	return hashInt.Mod(hashInt, N)
-}
-
-// ConcatBytes concats b to a
-func ConcatBytes(a, b []byte) []byte {
-	var buf bytes.Buffer
-	buf.Write(a)
-	buf.Write(b)
-	return buf.Bytes()
-}
-
-// AddBigInteger adds a BigInteger
-func AddBigInteger(a, b *big.Int) (res *big.Int) {
-	res = new(big.Int).Add(a, b)
-	res.Mod(res, N)
-	return
-}
-
-// MultiplyBigInteger mulitplies a BigInteger
-func MultiplyBigInteger(a, b *big.Int) (res *big.Int) {
-	res = new(big.Int).Mul(a, b)
-	res.Mod(res, N)
-	return
-}
-
-// Sha3Hash hashes data
-func Sha3Hash(message []byte) ([]byte, error) {
-	sha := sha3.New256()
-	_, err := sha.Write(message)
+// Decrypt recreates the AES key, then decrypts the encrypted data
+func Decrypt(ciphertext string, userKey string) (*string, error) {
+	// Split ciphertext from iv
+	metadata := strings.Split(ciphertext, "|")
+	ciphertext = metadata[0]
+	iv, err := base64.StdEncoding.DecodeString(metadata[1])
 	if err != nil {
 		return nil, err
 	}
-	return sha.Sum(nil), nil
-}
 
-// Contains checks if a string is contained within a string array
-func Contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
+	block, err := aes.NewCipher([]byte(userKey[0:32]))
+	if err != nil {
+		return nil, err
 	}
-	return false
-}
 
-// GetInverse gets the inverse of a BigInteger
-func GetInverse(a *big.Int) (res *big.Int) {
-	res = new(big.Int).ModInverse(a, N)
-	return
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return nil, err
+	}
+
+	cfb := cipher.NewCFBEncrypter(block, []byte(iv))
+	plaintext := make([]byte, len(data))
+	cfb.XORKeyStream(plaintext, data)
+	res := string(plaintext)
+	return &res, nil
 }
 
 // GetSecretKeyHash returns the hashed value of the secret key

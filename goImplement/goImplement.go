@@ -24,19 +24,26 @@ You need only encrypt once to send data anywhere within the ecosystem
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
 */
-func Produce(data string, attribute string, supertypeID string, skVendor string, pkVendor string) error {
+func Produce(data string, attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) error {
+	// Encrypt data using basic AES encryption
+	ciphertext, iv, err := Encrypt(data, userKey)
+	if err != nil {
+		return ErrEncryptingData
+	}
+
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	skHash := GetSecretKeyHash(skVendor)
 
 	obs := ObservationRequest{
 		Attribute:   attribute,
-		Ciphertext:  data, // TODO change this so that it's not just plaintext!!
+		Ciphertext:  *ciphertext,
 		SupertypeID: supertypeID,
 		PublicKey:   pkVendor,
 		SkHash:      skHash,
+		IV:          *iv,
 	}
 
-	// Upload data to DynamoDB
+	// Produce (upload) data to DynamoDB
 	requestBody, err := json.Marshal(obs)
 	if err != nil {
 		return ErrMarshaling
@@ -59,7 +66,7 @@ This data is source-agnostic, and encrypted end-to-end
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
 */
-func Consume(attribute string, supertypeID string, skVendor string, pkVendor string) (*[]string, error) {
+func Consume(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) (*[]string, error) {
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	skHash := GetSecretKeyHash(skVendor)
 
@@ -88,14 +95,15 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 	var observations []ObservationResponse
 	json.Unmarshal(body, &observations)
 
-	fmt.Printf("observations: %v\n", observations)
-
 	var result []string
 
 	// Iterate through each observation
-	// TODO eventually we'll do AES decryption here... right now it's just plaintext
 	for _, obs := range observations {
-		result = append(result, obs.Ciphertext)
+		plaintext, err := Decrypt(obs.Ciphertext, userKey)
+		if err != nil {
+			return nil, ErrDecrypting
+		}
+		result = append(result, *plaintext)
 	}
 
 	return &result, nil
@@ -108,8 +116,7 @@ ConsumeWS subscribes this node to the specified attribute(s)
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
 */
-func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string) error {
-	// TODO first make a POST reqeust to the server to add attributes to Redis, then subscribe via WebSocket...
+func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) error {
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	skHash := GetSecretKeyHash(skVendor)
 
@@ -151,6 +158,26 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 				if err != nil {
 					return
 				}
+			}
+
+			var raw map[string]interface{}
+			err = json.Unmarshal(message, &raw)
+			rawMessageType, ok := raw["type"].(float64)
+			if !ok {
+				fmt.Println("Error getting raw type")
+			}
+			var intMessageType = int(rawMessageType)
+			if intMessageType == 2 {
+				rawMessage, ok := raw["body"].(string)
+				if !ok {
+					fmt.Println("Error getting raw body")
+				}
+				plaintext, err := Decrypt(string(rawMessage), userKey)
+				if err != nil {
+					fmt.Printf("ERROR: Error decrypting message: %v\n", err)
+					return
+				}
+				fmt.Printf("Decrypted message: %v\n", *plaintext)
 			}
 		}
 	}()

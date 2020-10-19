@@ -7,15 +7,15 @@ type ObservationRequest struct {
 	SupertypeID string `json:"supertypeID"`
 	PublicKey   string `json:"pk"`
 	SkHash      string `json:"skHash"`
+	IV          string `json:"iv"`
 }
 
 // ObservationResponse is returned from the server
 type ObservationResponse struct {
-	Ciphertext           string    `json:"ciphertext"`
-	DateAdded            string    `json:"dateAdded"`
-	PublicKey            string    `json:"pk"`
-	SupertypeID          string    `json:"supertypeID"`
-	ReencryptionMetadata [2]string `json:"reencryptionMetadata"`
+	Ciphertext  string `json:"ciphertext"`
+	DateAdded   string `json:"dateAdded"`
+	PublicKey   string `json:"pk"`
+	SupertypeID string `json:"supertypeID"`
 }
 
 // Observation is a decrypted observation containing plaintext
