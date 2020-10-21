@@ -2,12 +2,6 @@ package goimplement
 
 import "errors"
 
-// ErrStringToPrivateKey ... error getting private key from string
-var ErrStringToPrivateKey = errors.New("Failed to convert from string to private key")
-
-// ErrStringToPublicKey ... error getting public key from string
-var ErrStringToPublicKey = errors.New("Failed to convert from string to public key")
-
 // ErrEncryptingData ... error encrypting data
 var ErrEncryptingData = errors.New("Error encrypting data")
 

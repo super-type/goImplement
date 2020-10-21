@@ -7,10 +7,11 @@ import (
 )
 
 func main() {
+	// Gallagher's SupertypeID (will replace with a user's, not a vendor's)
 	attribute := "temperature"
-	supertypeID := "user123"
+	supertypeID := "gtgneBo6bnVpZC5lbGxpcHRpYy5jdXJ2ZS9wb2ludHgsQWh0S0V1cWlJTlJrTnZyMWRBTHdWNWxNRzNoVVJTUHduNGhUZmh2Qm44c0E="
 
-	err := goimplement.ConsumeWS(attribute, supertypeID, "8575e5f7ca6ed6345ccdfc2d595649c571c6a4ac9a847b049b1ea67eb5e53acf", "046a9d202dcad0c86aa88fb72472fa2b2f180893bc4802a1fe9ce6ae80b4c1cef9a89d533c047e391f778759460830db149f9944c32126e4827c48819986238315")
+	err := goimplement.ConsumeWS(attribute, supertypeID, "MHcCAQEEIB0Co27xjk2xjBaZ4m5ebjscooulIAtxdjwVHJYAv4WDoAoGCCqGSM49AwEHoUQDQgAE4sPod+G1Nwfj11No5f2Qa2sUrTFTmoC4ppSfZrjg6YCPqb9ylaY+aBy1HeuM+8lhdB4CV2cvCV40yxBVy3kWag==", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4sPod+G1Nwfj11No5f2Qa2sUrTFTmoC4ppSfZrjg6YCPqb9ylaY+aBy1HeuM+8lhdB4CV2cvCV40yxBVy3kWag==")
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	}

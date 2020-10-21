@@ -8,11 +8,12 @@ import (
 
 // An example vendor A's backend, showing how easy it is to produce data to Supertype
 func main() {
+	// Gallagher's SupertypeID (will replace with a user's, not a vendor's)
 	temperature := "200"
 	attribute := "temperature"
-	supertypeID := "user123"
+	supertypeID := "gtgneBo6bnVpZC5lbGxpcHRpYy5jdXJ2ZS9wb2ludHgsQWh0S0V1cWlJTlJrTnZyMWRBTHdWNWxNRzNoVVJTUHduNGhUZmh2Qm44c0E="
 
-	err := goimplement.Produce(temperature, attribute, supertypeID, "40564280015546133127186018201877113429491387889238716460773792707727598260818", "04eca9461980bc478f86c56ca316a959e283c4be77da6a63aca2b26a349e103b24b0595affd6ce401d323f6fc61c003cd580f609b7f9ec58901259ce1190aecc0a")
+	err := goimplement.Produce(temperature, attribute, supertypeID, "MHcCAQEEIKn/I4RaVf7/p3QbYqwH0nQJsjRqKwn/7YUJ/eljNMwroAoGCCqGSM49AwEHoUQDQgAEDywt/8GOiJHxa7yY1l/fYj0Y3p6ITIhh5LqlwMtGjd8Wiy7bx4eY3FsoRKtb1CRlYhGOFsb8Se7Ya2VcqJfecA==", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDywt/8GOiJHxa7yY1l/fYj0Y3p6ITIhh5LqlwMtGjd8Wiy7bx4eY3FsoRKtb1CRlYhGOFsb8Se7Ya2VcqJfecA==")
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	}
