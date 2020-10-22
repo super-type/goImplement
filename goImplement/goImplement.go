@@ -162,6 +162,7 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 
 			var raw map[string]interface{}
 			err = json.Unmarshal(message, &raw)
+			// TODO this prints an error when initially subscribing, because right now "Subscribed" doesn't contain a type. This should be resolve in the issue where we properly send messageType
 			rawMessageType, ok := raw["type"].(float64)
 			if !ok {
 				fmt.Println("Error getting raw type")
@@ -190,8 +191,6 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 		case <-done:
 			return nil
 		case <-interrupt:
-			log.Println("interrupt")
-
 			// Cleanly close the connection by sending a close message and then
 			// waiting (with timeout) for the server to close the connection.
 			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
