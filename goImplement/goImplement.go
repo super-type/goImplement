@@ -99,7 +99,7 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 
 	// Iterate through each observation
 	for _, obs := range observations {
-		plaintext, err := Decrypt(obs.Ciphertext, userKey)
+		plaintext, _, err := Decrypt(obs.Ciphertext, userKey)
 		if err != nil {
 			return nil, ErrDecrypting
 		}
@@ -138,47 +138,43 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 	go func() {
 		defer close(done)
 		for {
-			_, message, err := c.ReadMessage()
+			messageType, message, err := c.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
+				log.Println("read error:", err)
 				return
 			}
-			log.Printf("recv: %s", message)
 
-			// todo we should listen to something better than "Subscribed" - maybe write a specific message type
-			if string(message) == "Subscribed" {
-				requestBody, err := json.Marshal(map[string]string{
-					"attribute":   attribute,
-					"supertypeID": supertypeID,
-					"pk":          pkVendor,
-					"skHash":      skHash,
-					"cid":         string(message),
-				})
-				err = c.WriteMessage(2, requestBody)
-				if err != nil {
-					return
+			switch messageType {
+			case 1:
+				if string(message) == "Connected" {
+					requestBody, err := json.Marshal(map[string]string{
+						"attribute":   attribute,
+						"supertypeID": supertypeID,
+						"pk":          pkVendor,
+						"skHash":      skHash,
+						"cid":         string(message),
+					})
+					err = c.WriteMessage(2, requestBody)
+					if err != nil {
+						return
+					}
+				} else {
+					log.Printf("subscribed to: %s", message)
 				}
-			}
+			case 2:
+				var raw map[string]interface{}
+				err = json.Unmarshal(message, &raw)
 
-			var raw map[string]interface{}
-			err = json.Unmarshal(message, &raw)
-			// TODO this prints an error when initially subscribing, because right now "Subscribed" doesn't contain a type. This should be resolve in the issue where we properly send messageType
-			rawMessageType, ok := raw["type"].(float64)
-			if !ok {
-				fmt.Println("Error getting raw type")
-			}
-			var intMessageType = int(rawMessageType)
-			if intMessageType == 2 {
 				rawMessage, ok := raw["body"].(string)
 				if !ok {
 					fmt.Println("Error getting raw body")
 				}
-				plaintext, err := Decrypt(string(rawMessage), userKey)
+				plaintext, attribute, err := Decrypt(string(rawMessage), userKey)
 				if err != nil {
 					fmt.Printf("ERROR: Error decrypting message: %v\n", err)
 					return
 				}
-				fmt.Printf("Decrypted message: %v\n", *plaintext)
+				fmt.Printf("Received %v: %v\n", *attribute, *plaintext)
 			}
 		}
 	}()
