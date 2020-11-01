@@ -23,6 +23,7 @@ You need only encrypt once to send data anywhere within the ecosystem
 @param supertypeId the vendor's Supertype ID
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
+@param userKey the user's unique AES encryption key
 */
 func Produce(data string, attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) error {
 	// Encrypt data using basic AES encryption
@@ -65,8 +66,11 @@ This data is source-agnostic, and encrypted end-to-end
 @param supertypeID the vendor's Supertype ID
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
+@param userKey the user's unique AES encryption key
+
+@return plaintext the decrypted observation the vendor is requesting
 */
-func Consume(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) (*[]string, error) {
+func Consume(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) (plaintext *[]string, err error) {
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	skHash := GetSecretKeyHash(skVendor)
 
@@ -115,6 +119,7 @@ ConsumeWS subscribes this node to the specified attribute(s)
 @param supertypeID the vendor's Supertype ID
 @param skVendor the vendor's secret key
 @param pkVendor the vendor's public key
+@param userKey the user's unique AES encryption key
 */
 func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) error {
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
