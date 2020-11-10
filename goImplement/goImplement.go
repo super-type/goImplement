@@ -47,12 +47,23 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	// Produce (upload) data to DynamoDB
 	requestBody, err := json.Marshal(obs)
 	if err != nil {
-		return ErrMarshaling
+		return err
 	}
 
-	_, err = http.Post("http://localhost:8080/produce", "application/json", bytes.NewBuffer(requestBody))
-	if err != nil {
-		return ErrHTML
+	// TODO we are only using this when testing locally. We should only request the real API when publishing to GoDoc
+	if len(os.Args) == 1 || os.Args[1] == "local" {
+		_, err = http.Post("http://localhost:5000/produce", "application/json", bytes.NewBuffer(requestBody))
+		if err != nil {
+			return err
+		}
+	} else if os.Args[1] == "test" {
+		_, err = http.Post("https://supertype.io/produce", "application/json", bytes.NewBuffer(requestBody))
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("Please use one of: local | test")
+		return nil
 	}
 
 	// TODO we should probably return something here...
@@ -73,6 +84,7 @@ This data is source-agnostic, and encrypted end-to-end
 func Consume(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) (plaintext *[]string, err error) {
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	skHash := GetSecretKeyHash(skVendor)
+	fmt.Println(skHash)
 
 	requestBody, err := json.Marshal(map[string]string{
 		"attribute":   attribute,
@@ -81,12 +93,26 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 		"skHash":      skHash,
 	})
 	if err != nil {
-		return nil, ErrMarshaling
+		return nil, err
 	}
 
-	resp, err := http.Post("http://localhost:8080/consume", "application/json", bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, ErrHTML
+	var resp *http.Response
+	var result []string
+
+	// TODO we are only using this when testing locally. We should only request the real API when publishing to GoDoc
+	if len(os.Args) == 1 || os.Args[1] == "local" {
+		resp, err = http.Post("http://localhost:5000/consume", "application/json", bytes.NewBuffer(requestBody))
+		if err != nil {
+			return nil, err
+		}
+	} else if os.Args[1] == "test" {
+		resp, err = http.Post("https://supertype.io/consume", "application/json", bytes.NewBuffer(requestBody))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		fmt.Println("Please use one of: local | test")
+		return &result, nil
 	}
 
 	defer resp.Body.Close()
@@ -98,8 +124,6 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 
 	var observations []ObservationResponse
 	json.Unmarshal(body, &observations)
-
-	var result []string
 
 	// Iterate through each observation
 	for _, obs := range observations {
@@ -128,8 +152,20 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 	// Establish WebSocket connection between device <-> server
 	interrupt := make(chan os.Signal, 1)
 
-	var addr = flag.String("addr", "localhost:8081", "http service address")
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consume"}
+	var addr *string
+
+	// TODO we are only using this when testing locally. We should only request the real API when publishing to GoDoc
+	if len(os.Args) == 1 || os.Args[1] == "local" {
+		addr = flag.String("addr", "localhost:5001", "http service address")
+	} else if os.Args[1] == "test" {
+		addr = flag.String("addr", "supertype-demo.us-east-1.elasticbeanstalk.com:8082", "http service address")
+	} else {
+		fmt.Println("Please use one of: local | test")
+		return nil
+	}
+
+	// var addr = flag.String("addr", "localhost:5001", "http service address")
+	u := url.URL{Scheme: "ws", Host: *addr, Path: "/subscribe"}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
