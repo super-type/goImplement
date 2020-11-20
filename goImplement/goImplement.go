@@ -29,7 +29,7 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	// Encrypt data using basic AES encryption
 	ciphertext, iv, err := Encrypt(data, userKey)
 	if err != nil {
-		return ErrEncryptingData
+		return err
 	}
 
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
@@ -47,15 +47,14 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	// Produce (upload) data to DynamoDB
 	requestBody, err := json.Marshal(obs)
 	if err != nil {
-		return ErrMarshaling
+		return err
 	}
 
-	_, err = http.Post("http://localhost:8080/produce", "application/json", bytes.NewBuffer(requestBody))
+	_, err = http.Post("https://supertype.io/produce", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		return ErrHTML
+		return err
 	}
 
-	// TODO we should probably return something here...
 	return nil
 }
 
@@ -81,31 +80,32 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 		"skHash":      skHash,
 	})
 	if err != nil {
-		return nil, ErrMarshaling
+		return nil, err
 	}
 
-	resp, err := http.Post("http://localhost:8080/consume", "application/json", bytes.NewBuffer(requestBody))
+	var resp *http.Response
+	var result []string
+
+	resp, err = http.Post("https://supertype.io/consume", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		return nil, ErrHTML
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, ErrIORead
+		return nil, err
 	}
 
 	var observations []ObservationResponse
 	json.Unmarshal(body, &observations)
 
-	var result []string
-
 	// Iterate through each observation
 	for _, obs := range observations {
 		plaintext, _, err := Decrypt(obs.Ciphertext, userKey)
 		if err != nil {
-			return nil, ErrDecrypting
+			return nil, err
 		}
 		result = append(result, *plaintext)
 	}
@@ -128,8 +128,11 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 	// Establish WebSocket connection between device <-> server
 	interrupt := make(chan os.Signal, 1)
 
-	var addr = flag.String("addr", "localhost:8081", "http service address")
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/consume"}
+	var addr *string
+
+	addr = flag.String("addr", "supertype-demo.us-east-1.elasticbeanstalk.com:8082", "http service address")
+
+	u := url.URL{Scheme: "ws", Host: *addr, Path: "/subscribe"}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
