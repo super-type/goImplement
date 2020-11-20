@@ -7,9 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"io"
-	"log"
 	"strings"
 )
 
@@ -18,21 +16,19 @@ import (
 func Encrypt(message string, userKey string) (*string, *string, error) {
 	plaintext := []byte(message)
 	userKeyBytes := []byte(userKey[0:32])
-	fmt.Printf("userKey: %v\n", userKey)
-	fmt.Printf("userkeyBytes: %v\n", userKeyBytes)
 
 	block, err := aes.NewCipher(userKeyBytes)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	ciphertext := make([]byte, len(plaintext))
 	iv := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(iv); err != nil {
-		log.Fatal(err)
+		return nil, nil, err
 	}
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	cfb := cipher.NewCFBEncrypter(block, iv)
@@ -46,6 +42,7 @@ func Encrypt(message string, userKey string) (*string, *string, error) {
 // Decrypt recreates the AES key, then decrypts the encrypted data
 // https://play.golang.org/p/4FQBAeHgRs
 // https://gist.github.com/huyinghuan/e6d3046add5412bcd1129b074dc8b106
+// https://gist.github.com/lihnux/2aa4a6f5a9170974f6aa
 func Decrypt(ciphertext string, userKey string) (*string, *string, error) {
 	keyBytes := []byte(userKey[0:32])
 	metadata := strings.Split(ciphertext, "|")
@@ -58,12 +55,12 @@ func Decrypt(ciphertext string, userKey string) (*string, *string, error) {
 
 	ciphertextBytes, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	stream := cipher.NewCFBDecrypter(block, iv)

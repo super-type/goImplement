@@ -17,10 +17,3 @@ type ObservationResponse struct {
 	PublicKey   string `json:"pk"`
 	SupertypeID string `json:"supertypeID"`
 }
-
-// Observation is a decrypted observation containing plaintext
-type Observation struct {
-	DateAdded string `json:"dateAdded"`
-	PublicKey string `json:"pk"`
-	Plaintext string `json:"plaintext"`
-}

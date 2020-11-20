@@ -29,7 +29,7 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 	// Encrypt data using basic AES encryption
 	ciphertext, iv, err := Encrypt(data, userKey)
 	if err != nil {
-		return ErrEncryptingData
+		return err
 	}
 
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
@@ -50,23 +50,11 @@ func Produce(data string, attribute string, supertypeID string, skVendor string,
 		return err
 	}
 
-	// TODO we are only using this when testing locally. We should only request the real API when publishing to GoDoc
-	if len(os.Args) == 1 || os.Args[1] == "local" {
-		_, err = http.Post("http://localhost:5000/produce", "application/json", bytes.NewBuffer(requestBody))
-		if err != nil {
-			return err
-		}
-	} else if os.Args[1] == "test" {
-		_, err = http.Post("https://supertype.io/produce", "application/json", bytes.NewBuffer(requestBody))
-		if err != nil {
-			return err
-		}
-	} else {
-		fmt.Println("Please use one of: local | test")
-		return nil
+	_, err = http.Post("https://supertype.io/produce", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return err
 	}
 
-	// TODO we should probably return something here...
 	return nil
 }
 
@@ -84,7 +72,6 @@ This data is source-agnostic, and encrypted end-to-end
 func Consume(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) (plaintext *[]string, err error) {
 	// Generate hash of secret key to be used as a signing measure for producing/consuming data
 	skHash := GetSecretKeyHash(skVendor)
-	fmt.Println(skHash)
 
 	requestBody, err := json.Marshal(map[string]string{
 		"attribute":   attribute,
@@ -99,27 +86,16 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 	var resp *http.Response
 	var result []string
 
-	// TODO we are only using this when testing locally. We should only request the real API when publishing to GoDoc
-	if len(os.Args) == 1 || os.Args[1] == "local" {
-		resp, err = http.Post("http://localhost:5000/consume", "application/json", bytes.NewBuffer(requestBody))
-		if err != nil {
-			return nil, err
-		}
-	} else if os.Args[1] == "test" {
-		resp, err = http.Post("https://supertype.io/consume", "application/json", bytes.NewBuffer(requestBody))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		fmt.Println("Please use one of: local | test")
-		return &result, nil
+	resp, err = http.Post("https://supertype.io/consume", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, ErrIORead
+		return nil, err
 	}
 
 	var observations []ObservationResponse
@@ -129,7 +105,7 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 	for _, obs := range observations {
 		plaintext, _, err := Decrypt(obs.Ciphertext, userKey)
 		if err != nil {
-			return nil, ErrDecrypting
+			return nil, err
 		}
 		result = append(result, *plaintext)
 	}
@@ -154,17 +130,8 @@ func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor s
 
 	var addr *string
 
-	// TODO we are only using this when testing locally. We should only request the real API when publishing to GoDoc
-	if len(os.Args) == 1 || os.Args[1] == "local" {
-		addr = flag.String("addr", "localhost:5001", "http service address")
-	} else if os.Args[1] == "test" {
-		addr = flag.String("addr", "supertype-demo.us-east-1.elasticbeanstalk.com:8082", "http service address")
-	} else {
-		fmt.Println("Please use one of: local | test")
-		return nil
-	}
+	addr = flag.String("addr", "supertype-demo.us-east-1.elasticbeanstalk.com:8082", "http service address")
 
-	// var addr = flag.String("addr", "localhost:5001", "http service address")
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/subscribe"}
 	log.Printf("connecting to %s", u.String())
 
