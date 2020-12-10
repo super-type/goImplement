@@ -1,4 +1,4 @@
-module github.com/super-type/supertype
+module github.com/super-type/goImplement
 
 go 1.14
 
