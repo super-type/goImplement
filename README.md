@@ -36,7 +36,7 @@ import (
     "fmt"
     "os"
 
-	goimplement "github.com/super-type/supertype/goImplement"
+	goimplement "github.com/super-type/goImplement/goImplement"
 )
 
 func main() {
@@ -65,7 +65,7 @@ import (
     "fmt"
     "os"
 
-	goimplement "github.com/super-type/supertype/goImplement"
+	goimplement "github.com/super-type/goImplement/goImplement"
 )
 
 func main() {
