@@ -3,16 +3,8 @@ package goimplement
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"net/url"
-	"os"
-	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 /*
@@ -111,101 +103,4 @@ func Consume(attribute string, supertypeID string, skVendor string, pkVendor str
 	}
 
 	return &result, nil
-}
-
-/*
-ConsumeWS subscribes this node to the specified attribute(s)
-@param attribute to consume data from
-@param supertypeID the vendor's Supertype ID
-@param skVendor the vendor's secret key
-@param pkVendor the vendor's public key
-@param userKey the user's unique AES encryption key
-*/
-func ConsumeWS(attribute string, supertypeID string, skVendor string, pkVendor string, userKey string) error {
-	// Generate hash of secret key to be used as a signing measure for producing/consuming data
-	skHash := GetSecretKeyHash(skVendor)
-
-	// Establish WebSocket connection between device <-> server
-	interrupt := make(chan os.Signal, 1)
-
-	var addr *string
-
-	addr = flag.String("addr", "supertype-demo.us-east-1.elasticbeanstalk.com:8082", "http service address")
-
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/subscribe"}
-	log.Printf("connecting to %s", u.String())
-
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		log.Fatal("dial:", err)
-	}
-	defer c.Close()
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-		for {
-			messageType, message, err := c.ReadMessage()
-			if err != nil {
-				log.Println("read error:", err)
-				return
-			}
-
-			switch messageType {
-			case 1:
-				if string(message) == "Connected" {
-					requestBody, err := json.Marshal(map[string]string{
-						"attribute":   attribute,
-						"supertypeID": supertypeID,
-						"pk":          pkVendor,
-						"skHash":      skHash,
-						"cid":         string(message),
-					})
-					err = c.WriteMessage(2, requestBody)
-					if err != nil {
-						return
-					}
-				} else {
-					log.Printf("subscribed to: %s", message)
-				}
-			case 2:
-				var raw map[string]interface{}
-				err = json.Unmarshal(message, &raw)
-
-				rawMessage, ok := raw["body"].(string)
-				if !ok {
-					fmt.Println("Error getting raw body")
-				}
-				plaintext, attribute, err := Decrypt(string(rawMessage), userKey)
-				if err != nil {
-					fmt.Printf("ERROR: Error decrypting message: %v\n", err)
-					return
-				}
-				fmt.Printf("Received %v: %v\n", *attribute, *plaintext)
-			}
-		}
-	}()
-
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-done:
-			return nil
-		case <-interrupt:
-			// Cleanly close the connection by sending a close message and then
-			// waiting (with timeout) for the server to close the connection.
-			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				return nil
-			}
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-			}
-			return nil
-		}
-	}
 }
