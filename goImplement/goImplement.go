@@ -15,10 +15,9 @@ You need only encrypt once to send data anywhere within the ecosystem
 @param attribute the attribute to produce the data to
 @param supertypeId the vendor's Supertype ID
 @param apiKey the vendor's secret key
-@param pkVendor the vendor's public key
 @param userKey the user's unique AES encryption key
 */
-func Produce(data string, attribute string, supertypeID string, apiKey string, pkVendor string, userKey string) error {
+func Produce(data string, attribute string, supertypeID string, apiKey string, userKey string) error {
 	// Generate hash of API key to be used as a signing measure for producing/consuming data
 	apiKeyHash := GetAPIKeyHash(apiKey)
 
@@ -32,7 +31,6 @@ func Produce(data string, attribute string, supertypeID string, apiKey string, p
 		Attribute:   attribute,
 		Ciphertext:  *ciphertext,
 		SupertypeID: supertypeID,
-		PublicKey:   pkVendor,
 		IV:          *iv,
 	}
 
@@ -66,19 +64,17 @@ This data is source-agnostic, and encrypted end-to-end
 @param attribute to consume data from
 @param supertypeID the vendor's Supertype ID
 @param apiKey the vendor's secret key
-@param pkVendor the vendor's public key
 @param userKey the user's unique AES encryption key
 
 @return plaintext the decrypted observation the vendor is requesting
 */
-func Consume(attribute string, supertypeID string, apiKey string, pkVendor string, userKey string) (plaintext *[]string, err error) {
+func Consume(attribute string, supertypeID string, apiKey string, userKey string) (plaintext *[]string, err error) {
 	// Generate hash of API key to be used as a signing measure for producing/consuming data
 	apiKeyHash := GetAPIKeyHash(apiKey)
 
 	requestBody, err := json.Marshal(map[string]string{
 		"attribute":   attribute,
 		"supertypeID": supertypeID,
-		"pk":          pkVendor,
 	})
 	if err != nil {
 		return nil, err
@@ -111,7 +107,6 @@ func Consume(attribute string, supertypeID string, apiKey string, pkVendor strin
 
 	// Iterate through each observation
 	for _, obs := range observations {
-		fmt.Println("here")
 		plaintext, _, err := Decrypt(obs.Ciphertext, userKey)
 		if err != nil {
 			return nil, err
