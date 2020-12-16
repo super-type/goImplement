@@ -72,8 +72,8 @@ func Decrypt(ciphertext string, userKey string) (*string, *string, error) {
 	return &res, &attribute, nil
 }
 
-// GetSecretKeyHash returns the hashed value of the secret key
-func GetSecretKeyHash(skVendor string) string {
+// GetAPIKeyHash returns the hashed value of the secret key
+func GetAPIKeyHash(skVendor string) string {
 	h := sha256.New()
 	h.Write([]byte(skVendor))
 	return hex.EncodeToString(h.Sum(nil))
