@@ -18,9 +18,6 @@ You need only encrypt once to send data anywhere within the ecosystem
 @param userKey the user's unique AES encryption key
 */
 func Produce(data string, attribute string, supertypeID string, apiKey string, userKey string) error {
-	// Generate hash of API key to be used as a signing measure for producing/consuming data
-	apiKeyHash := GetAPIKeyHash(apiKey)
-
 	// Encrypt data using basic AES encryption
 	ciphertext, iv, err := Encrypt(data, userKey)
 	if err != nil {
@@ -47,7 +44,7 @@ func Produce(data string, attribute string, supertypeID string, apiKey string, u
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("X-API-Key", apiKeyHash)
+	req.Header.Add("X-API-Key", apiKey)
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println(err)
@@ -69,9 +66,6 @@ This data is source-agnostic, and encrypted end-to-end
 @return plaintext the decrypted observation the vendor is requesting
 */
 func Consume(attribute string, supertypeID string, apiKey string, userKey string) (plaintext *[]string, err error) {
-	// Generate hash of API key to be used as a signing measure for producing/consuming data
-	apiKeyHash := GetAPIKeyHash(apiKey)
-
 	requestBody, err := json.Marshal(map[string]string{
 		"attribute":   attribute,
 		"supertypeID": supertypeID,
@@ -86,7 +80,7 @@ func Consume(attribute string, supertypeID string, apiKey string, userKey string
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("X-API-Key", apiKeyHash)
+	req.Header.Add("X-API-Key", apiKey)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

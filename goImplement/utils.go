@@ -4,9 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"io"
 	"strings"
 )
@@ -70,11 +68,4 @@ func Decrypt(ciphertext string, userKey string) (*string, *string, error) {
 	res := string(plaintext)
 
 	return &res, &attribute, nil
-}
-
-// GetAPIKeyHash returns the hashed value of the secret key
-func GetAPIKeyHash(skVendor string) string {
-	h := sha256.New()
-	h.Write([]byte(skVendor))
-	return hex.EncodeToString(h.Sum(nil))
 }
