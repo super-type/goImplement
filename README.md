@@ -8,14 +8,14 @@ The GoImplement encryption library is a low-touch API client library that simpli
 
 Demo attributes can be found at https://demo.supertype.io. The available attributes to produce to and consume from are:
 
-* `masterBedroom`
-* `guestBedroom`
-* `kidsBedroom`
+* `master-bedroom`
+* `guest-bedroom`
+* `kids-bedroom`
 * `garage`
 * `bathroom`
 * `kitchen`
-* `livingRoom`
-* `laundryRoom`
+* `living-room`
+* `laundry-room`
 
 Currently, any data type is acceptable to produce, although data types will be restricted when actually signing up for a pilot program or production vendor account with Supertype.
 
