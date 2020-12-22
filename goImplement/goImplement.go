@@ -68,7 +68,7 @@ This data is source-agnostic, and encrypted end-to-end
 
 @return plaintext the decrypted observation the vendor is requesting
 */
-func Consume(attribute string, supertypeID string, apiKey string, userKey string) (plaintext *[]string, err error) {
+func Consume(attribute string, supertypeID string, apiKey string, userKey string) (*string, error) {
 	requestBody, err := json.Marshal(map[string]string{
 		"attribute":   attribute,
 		"supertypeID": supertypeID,
@@ -90,28 +90,15 @@ func Consume(attribute string, supertypeID string, apiKey string, userKey string
 	}
 	defer resp.Body.Close()
 
-	var result []string
-
-	defer resp.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	var observations []ObservationResponse
-	json.Unmarshal(body, &observations)
-
-	// Iterate through each observation
-	for _, obs := range observations {
-		plaintext, _, err := Decrypt(obs.Ciphertext, userKey)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, *plaintext)
-	}
-
-	return &result, nil
+	var observation ObservationResponse
+	json.Unmarshal(body, &observation)
+	plaintext, _, err := Decrypt(observation.Ciphertext, userKey)
+	return plaintext, nil
 }
 
 /*
