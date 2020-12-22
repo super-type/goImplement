@@ -2,7 +2,10 @@ package goimplement
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -109,4 +112,23 @@ func Consume(attribute string, supertypeID string, apiKey string, userKey string
 	}
 
 	return &result, nil
+}
+
+/*
+ValidateWebhookRequest validates incoming Webhook requests to ensure they're coming from Supertype
+@param apiKey your secret API Key
+@param supertypeSignature the signature Supertype sends as header X-Supertype-Signature
+
+@return error if invalid signature, else nil
+*/
+func ValidateWebhookRequest(apiKey string, supertypeSignature string) error {
+	h := sha256.New()
+	h.Write([]byte(apiKey))
+	apiKeyHash := hex.EncodeToString(h.Sum(nil))
+
+	if apiKeyHash != supertypeSignature {
+		return errors.New("Signatures do not match. Request does not come from Supertype")
+	}
+
+	return nil
 }
